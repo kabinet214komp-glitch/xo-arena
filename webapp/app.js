@@ -3,563 +3,503 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
     tg.ready();
     tg.expand();
-
-    tg.setHeaderColor("#080b16");
-    tg.setBackgroundColor("#080b16");
 }
 
 
-// ==========================================
-// GAME
-// ==========================================
+// =====================================================
+// ELEMENTS
+// =====================================================
 
-const boardElement =
-    document.getElementById("board");
+const cells = document.querySelectorAll(".cell");
 
-const cells =
-    document.querySelectorAll(".cell");
+const status = document.getElementById("status");
 
-const statusElement =
-    document.getElementById("status");
+const connection =
+    document.getElementById("connection");
 
-const restartButton =
-    document.getElementById("restart");
+const playerText =
+    document.getElementById("playerText");
 
-const playAgainButton =
-    document.getElementById("playAgain");
+const roomText =
+    document.getElementById("roomText");
 
-const winScreen =
-    document.getElementById("winScreen");
+const result =
+    document.getElementById("result");
 
-const winTitle =
-    document.getElementById("winTitle");
+const resultText =
+    document.getElementById("resultText");
 
-const winText =
-    document.getElementById("winText");
+const resultIcon =
+    document.getElementById("resultIcon");
 
-const pieceCount =
-    document.getElementById("pieceCount");
+const newGame =
+    document.getElementById("newGame");
 
-const scoreElement =
-    document.getElementById("score");
+const xPlayers =
+    document.getElementById("xPlayers");
 
-
-// ==========================================
-// PLAYER
-// ==========================================
-
-let playerName = "Player";
-
-if (tg?.initDataUnsafe?.user) {
-
-    const user =
-        tg.initDataUnsafe.user;
-
-    playerName =
-        user.first_name ||
-        user.username ||
-        "Player";
-
-    document.getElementById(
-        "playerName"
-    ).textContent = playerName;
-
-    if (user.photo_url) {
-
-        const avatar =
-            document.getElementById("avatar");
-
-        avatar.style.backgroundImage =
-            `url("${user.photo_url}")`;
-
-        avatar.style.backgroundSize =
-            "cover";
-
-        avatar.textContent = "";
-    }
-}
+const oPlayers =
+    document.getElementById("oPlayers");
 
 
-// ==========================================
-// GAME STATE
-// ==========================================
+// =====================================================
+// ROOM
+// =====================================================
 
-let board = Array(9).fill("");
+// Пока используем room из URL:
+//
+// https://site.com/?room=ABC123
+//
+// Если комнаты нет — создаём её.
 
-let currentPlayer = "X";
-
-let gameOver = false;
-
-let moves = {
-    X: [],
-    O: []
-};
-
-let score = 0;
-
-
-// ==========================================
-// WIN COMBINATIONS
-// ==========================================
-
-const winPatterns = [
-
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-
-    [0, 4, 8],
-    [2, 4, 6]
-
-];
-
-
-// ==========================================
-// CLICK
-// ==========================================
-
-cells.forEach(cell => {
-
-    cell.addEventListener(
-        "click",
-        () => {
-
-            const index =
-                Number(
-                    cell.dataset.index
-                );
-
-            makeMove(index);
-
-        }
+const params =
+    new URLSearchParams(
+        window.location.search
     );
 
-});
+let roomId =
+    params.get("room");
 
 
-// ==========================================
-// MOVE
-// ==========================================
+// Создаём комнату, если её нет
 
-function makeMove(index) {
+if (!roomId) {
 
-    if (gameOver) return;
+    roomId =
+        Math.random()
+            .toString(36)
+            .substring(2, 8)
+            .toUpperCase();
 
-    if (board[index] !== "") return;
+    const newUrl =
+        `${window.location.origin}/?room=${roomId}`;
 
-
-    const player =
-        currentPlayer;
-
-
-    // поставить фигуру
-
-    board[index] =
-        player;
-
-    moves[player].push(index);
+    window.history.replaceState(
+        {},
+        "",
+        newUrl
+    );
+}
 
 
-    // визуально
-
-    render();
-
-
-    vibrate();
+roomText.textContent =
+    `Комната: #${roomId}`;
 
 
-    // ======================================
-    // CHECK WIN
-    // ======================================
+// =====================================================
+// STATE
+// =====================================================
 
-    const winningCells =
-        checkWinner(player);
+let socket = null;
+
+let myPlayer = null;
+
+let board = [];
+
+let currentTurn = null;
+
+let winner = null;
 
 
-    if (winningCells) {
+// =====================================================
+// WEBSOCKET URL
+// =====================================================
 
-        gameOver = true;
+function getWebSocketURL() {
 
-        winningCells.forEach(
-            index => {
+    const protocol =
+        window.location.protocol === "https:"
+            ? "wss:"
+            : "ws:";
 
-                cells[index]
-                    .classList
-                    .add("winner");
+    return (
+        protocol +
+        "//" +
+        window.location.host +
+        "/ws/" +
+        roomId
+    );
+}
 
-            }
+
+// =====================================================
+// CONNECT
+// =====================================================
+
+function connect() {
+
+    connection.textContent =
+        "🟡 Подключение...";
+
+    socket =
+        new WebSocket(
+            getWebSocketURL()
         );
 
-        setTimeout(
-            () => showWin(player),
-            550
+
+    socket.onopen = () => {
+
+        connection.textContent =
+            "🟢 Онлайн";
+
+        connection.style.color =
+            "#4ade80";
+    };
+
+
+    socket.onclose = () => {
+
+        connection.textContent =
+            "🔴 Отключено";
+
+        connection.style.color =
+            "#ff5555";
+
+        status.textContent =
+            "Соединение потеряно";
+    };
+
+
+    socket.onerror = () => {
+
+        connection.textContent =
+            "🔴 Ошибка";
+    };
+
+
+    socket.onmessage = event => {
+
+        const data =
+            JSON.parse(event.data);
+
+        handleMessage(data);
+    };
+}
+
+
+// =====================================================
+// SERVER MESSAGE
+// =====================================================
+
+function handleMessage(data) {
+
+    // -----------------------------------------------
+    // CONNECTED
+    // -----------------------------------------------
+
+    if (data.type === "connected") {
+
+        myPlayer =
+            data.player;
+
+        board =
+            data.board || [];
+
+        currentTurn =
+            data.turn;
+
+        winner =
+            data.winner;
+
+        updatePlayers(
+            data.players
         );
+
+        playerText.textContent =
+            myPlayer === "X"
+                ? "❌ Ты играешь за X"
+                : "⭕ Ты играешь за O";
+
+        render();
+
+        updateStatus();
 
         return;
     }
 
 
-    // ======================================
-    // REMOVE OLD PIECE
-    // ======================================
+    // -----------------------------------------------
+    // STATE
+    // -----------------------------------------------
 
-    if (moves[player].length > 3) {
+    if (data.type === "state") {
 
-        const oldIndex =
-            moves[player].shift();
+        board =
+            data.board || [];
 
-        removePiece(oldIndex);
+        currentTurn =
+            data.turn;
 
-    }
+        winner =
+            data.winner;
 
-
-    // next player
-
-    currentPlayer =
-        player === "X"
-            ? "O"
-            : "X";
-
-
-    updateStatus();
-
-}
-
-
-// ==========================================
-// REMOVE PIECE ANIMATION
-// ==========================================
-
-function removePiece(index) {
-
-    const cell =
-        cells[index];
-
-    cell.classList.add(
-        "removing"
-    );
-
-
-    setTimeout(() => {
-
-        board[index] = "";
-
-        cell.classList.remove(
-            "removing"
+        updatePlayers(
+            data.players
         );
 
         render();
 
-    }, 350);
+        updateStatus();
+
+        if (winner) {
+
+            showResult(
+                winner
+            );
+        }
+
+        return;
+    }
+
+
+    // -----------------------------------------------
+    // ERROR
+    // -----------------------------------------------
+
+    if (data.type === "error") {
+
+        status.textContent =
+            data.message;
+
+    }
 
 }
 
 
-// ==========================================
-// RENDER
-// ==========================================
+// =====================================================
+// PLAYERS
+// =====================================================
+
+function updatePlayers(count) {
+
+    count =
+        Number(count || 0);
+
+    if (count >= 1) {
+        xPlayers.textContent = "1";
+    } else {
+        xPlayers.textContent = "0";
+    }
+
+    if (count >= 2) {
+        oPlayers.textContent = "1";
+    } else {
+        oPlayers.textContent = "0";
+    }
+}
+
+
+// =====================================================
+// BOARD
+// =====================================================
 
 function render() {
 
     cells.forEach(
         (cell, index) => {
 
+            const value =
+                board[index] || "";
+
+            cell.textContent =
+                value;
+
             cell.classList.remove(
                 "x",
                 "o"
             );
 
-            if (board[index] === "X") {
+            if (value === "X") {
 
-                cell.classList.add("x");
-
+                cell.classList.add(
+                    "x"
+                );
             }
 
-            if (board[index] === "O") {
+            if (value === "O") {
 
-                cell.classList.add("o");
-
+                cell.classList.add(
+                    "o"
+                );
             }
 
+            cell.disabled =
+                Boolean(
+                    value
+                );
         }
     );
-
-
-    pieceCount.textContent =
-        `${moves.X.length} / 3`;
-
 }
 
 
-// ==========================================
-// WIN CHECK
-// ==========================================
-
-function checkWinner(player) {
-
-    for (
-        const pattern
-        of winPatterns
-    ) {
-
-        const [
-            a,
-            b,
-            c
-        ] = pattern;
-
-
-        if (
-            board[a] === player &&
-            board[b] === player &&
-            board[c] === player
-        ) {
-
-            return pattern;
-
-        }
-
-    }
-
-    return null;
-}
-
-
-// ==========================================
+// =====================================================
 // STATUS
-// ==========================================
+// =====================================================
 
 function updateStatus() {
 
-    if (currentPlayer === "X") {
+    if (winner) {
+        return;
+    }
 
-        statusElement.textContent =
-            "Твой ход ⚡";
+
+    if (currentTurn === myPlayer) {
+
+        status.textContent =
+            "🔥 ТВОЙ ХОД";
+
+        status.style.color =
+            "#ffffff";
 
     } else {
 
-        statusElement.textContent =
-            "⭕ Ход противника";
+        status.textContent =
+            "⏳ ХОД СОПЕРНИКА";
 
+        status.style.color =
+            "#9999aa";
     }
-
 }
 
 
-// ==========================================
-// WIN
-// ==========================================
+// =====================================================
+// MOVE
+// =====================================================
 
-function showWin(player) {
+cells.forEach(
+    cell => {
 
-    score++;
+        cell.addEventListener(
+            "click",
+            () => {
 
-    scoreElement.textContent =
-        score;
+                if (!socket) {
+                    return;
+                }
 
+                if (
+                    socket.readyState !==
+                    WebSocket.OPEN
+                ) {
+                    return;
+                }
 
-    winTitle.textContent =
-        player === "X"
-            ? "ПОБЕДА! 🎉"
-            : "ПОБЕДА O! 🎉";
+                if (winner) {
+                    return;
+                }
 
+                if (
+                    currentTurn !==
+                    myPlayer
+                ) {
+                    return;
+                }
 
-    winText.textContent =
-        player === "X"
-            ? "Три в ряд! Красиво сыграно."
-            : "O собрал три в ряд!";
+                const index =
+                    Number(
+                        cell.dataset.index
+                    );
 
+                if (
+                    board[index]
+                ) {
+                    return;
+                }
 
-    winScreen.classList.remove(
-        "hidden"
-    );
-
-
-    celebration();
-
-}
-
-
-// ==========================================
-// NEW GAME
-// ==========================================
-
-function newGame() {
-
-    board =
-        Array(9).fill("");
-
-    currentPlayer =
-        "X";
-
-    gameOver =
-        false;
-
-    moves = {
-        X: [],
-        O: []
-    };
-
-
-    cells.forEach(
-        cell => {
-
-            cell.classList.remove(
-                "x",
-                "o",
-                "winner",
-                "removing"
-            );
-
-        }
-    );
-
-
-    winScreen.classList.add(
-        "hidden"
-    );
-
-
-    updateStatus();
-
-    render();
-
-}
-
-
-restartButton.addEventListener(
-    "click",
-    newGame
+                socket.send(
+                    JSON.stringify({
+                        action: "move",
+                        index: index
+                    })
+                );
+            }
+        );
+    }
 );
 
 
-playAgainButton.addEventListener(
-    "click",
-    newGame
-);
+// =====================================================
+// RESULT
+// =====================================================
 
+function showResult(winnerValue) {
 
-// ==========================================
-// TELEGRAM VIBRATION
-// ==========================================
+    result.classList.remove(
+        "hidden"
+    );
 
-function vibrate() {
 
     if (
-        tg &&
-        tg.HapticFeedback
+        winnerValue ===
+        "DRAW"
     ) {
 
-        tg.HapticFeedback
-            .impactOccurred(
-                "light"
-            );
+        resultIcon.textContent =
+            "🤝";
 
+        resultText.textContent =
+            "Ничья!";
+
+        return;
     }
 
+
+    if (
+        winnerValue ===
+        myPlayer
+    ) {
+
+        resultIcon.textContent =
+            "🏆";
+
+        resultText.textContent =
+            "ПОБЕДА! 🔥";
+
+    } else {
+
+        resultIcon.textContent =
+            "😢";
+
+        resultText.textContent =
+            "Ты проиграл";
+    }
 }
 
 
-// ==========================================
-// SIMPLE CONFETTI
-// ==========================================
+// =====================================================
+// NEW GAME
+// =====================================================
 
-function celebration() {
+newGame.addEventListener(
+    "click",
+    () => {
 
-    for (
-        let i = 0;
-        i < 30;
-        i++
-    ) {
+        if (!socket) {
+            return;
+        }
 
-        const piece =
-            document.createElement(
-                "div"
-            );
+        if (
+            socket.readyState !==
+            WebSocket.OPEN
+        ) {
+            return;
+        }
 
-        piece.style.position =
-            "fixed";
-
-        piece.style.width =
-            "7px";
-
-        piece.style.height =
-            "7px";
-
-        piece.style.borderRadius =
-            "2px";
-
-        piece.style.left =
-            Math.random() * 100 + "%";
-
-        piece.style.top =
-            "-10px";
-
-        piece.style.zIndex =
-            "999";
-
-        piece.style.background =
-            [
-                "#ff4d7d",
-                "#35d6ff",
-                "#6c63ff",
-                "#ffd166",
-                "#ffffff"
-            ][
-                Math.floor(
-                    Math.random() * 5
-                )
-            ];
-
-
-        document.body.appendChild(
-            piece
+        socket.send(
+            JSON.stringify({
+                action: "reset"
+            })
         );
 
-
-        const animation =
-            piece.animate(
-                [
-                    {
-                        transform:
-                            "translateY(0) rotate(0)",
-                        opacity: 1
-                    },
-
-                    {
-                        transform:
-                            `translateY(${window.innerHeight + 50}px)
-                             rotate(${Math.random() * 720}deg)`,
-                        opacity: 0
-                    }
-                ],
-                {
-                    duration:
-                        1000 +
-                        Math.random() * 1200,
-
-                    easing:
-                        "cubic-bezier(.2,.7,.3,1)"
-                }
-            );
-
-
-        animation.onfinish =
-            () => piece.remove();
-
+        result.classList.add(
+            "hidden"
+        );
     }
+);
 
-}
 
+// =====================================================
+// START
+// =====================================================
 
-// ==========================================
-// INIT
-// ==========================================
-
-updateStatus();
-
-render();
+connect();
