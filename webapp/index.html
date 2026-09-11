@@ -17,131 +17,106 @@
 
 <body>
 
-<div class="app">
+    <div class="background"></div>
 
-    <!-- HEADER -->
+    <main class="app">
 
-    <header class="header">
+        <header class="header">
 
-        <div class="logo">
-            <span class="logo-x">X</span>
-            <span class="logo-o">O</span>
-        </div>
+            <div class="logo">
+                <span>XO</span>
+                <strong>ARENA</strong>
+            </div>
 
-        <div>
-            <h1>XO ARENA</h1>
-            <p>Battle of 3</p>
-        </div>
+            <div id="connection" class="connection">
+                🟡 Подключение...
+            </div>
 
-    </header>
-
-
-    <!-- PLAYER -->
-
-    <section class="player-card">
-
-        <div class="avatar" id="avatar">
-            ?
-        </div>
-
-        <div class="player-info">
-            <span class="player-name" id="playerName">
-                Player
-            </span>
-
-            <span class="player-role">
-                ❌ Твой символ
-            </span>
-        </div>
-
-        <div class="score">
-            <span>🏆</span>
-            <strong id="score">0</strong>
-        </div>
-
-    </section>
+        </header>
 
 
-    <!-- STATUS -->
+        <section class="online-panel">
 
-    <div class="status" id="status">
-        Твой ход ⚡
-    </div>
+            <div class="mode">
+                👥 ONLINE
+            </div>
+
+            <div id="roomText" class="room">
+                Создание комнаты...
+            </div>
+
+            <div id="playerText" class="player">
+                Подключение...
+            </div>
+
+        </section>
 
 
-    <!-- BOARD -->
+        <section class="game">
 
-    <main class="board" id="board">
+            <div id="status" class="status">
+                Подключение...
+            </div>
 
-        <button class="cell" data-index="0"></button>
-        <button class="cell" data-index="1"></button>
-        <button class="cell" data-index="2"></button>
+            <div id="board" class="board">
 
-        <button class="cell" data-index="3"></button>
-        <button class="cell" data-index="4"></button>
-        <button class="cell" data-index="5"></button>
+                <button class="cell" data-index="0"></button>
+                <button class="cell" data-index="1"></button>
+                <button class="cell" data-index="2"></button>
 
-        <button class="cell" data-index="6"></button>
-        <button class="cell" data-index="7"></button>
-        <button class="cell" data-index="8"></button>
+                <button class="cell" data-index="3"></button>
+                <button class="cell" data-index="4"></button>
+                <button class="cell" data-index="5"></button>
+
+                <button class="cell" data-index="6"></button>
+                <button class="cell" data-index="7"></button>
+                <button class="cell" data-index="8"></button>
+
+            </div>
+
+
+            <button
+                id="newGame"
+                class="new-game"
+            >
+                🔄 НОВАЯ ИГРА
+            </button>
+
+        </section>
+
+
+        <section
+            id="result"
+            class="result hidden"
+        >
+
+            <div id="resultIcon">
+                🏆
+            </div>
+
+            <div id="resultText">
+                Победа!
+            </div>
+
+        </section>
+
+
+        <footer>
+
+            <div>
+                ❌ <span id="xPlayers">0</span>
+            </div>
+
+            <div>
+                ⭕ <span id="oPlayers">0</span>
+            </div>
+
+        </footer>
 
     </main>
 
 
-    <!-- PIECES -->
-
-    <div class="pieces-info">
-
-        <div>
-            <span class="dot x-dot"></span>
-            <span>Твои фигуры</span>
-        </div>
-
-        <div>
-            <span id="pieceCount">0 / 3</span>
-        </div>
-
-    </div>
-
-
-    <!-- RESTART -->
-
-    <button class="restart" id="restart">
-        🔄 Новая игра
-    </button>
-
-
-</div>
-
-
-<!-- WIN SCREEN -->
-
-<div class="overlay hidden" id="winScreen">
-
-    <div class="win-card">
-
-        <div class="trophy">
-            🏆
-        </div>
-
-        <h2 id="winTitle">
-            ПОБЕДА!
-        </h2>
-
-        <p id="winText">
-            Три в ряд!
-        </p>
-
-        <button id="playAgain">
-            🎮 Играть снова
-        </button>
-
-    </div>
-
-</div>
-
-
-<script src="app.js"></script>
+    <script src="app.js"></script>
 
 </body>
 </html>
