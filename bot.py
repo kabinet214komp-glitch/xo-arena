@@ -1,12 +1,15 @@
+```python
 import os
 import asyncio
+import secrets
+from typing import Dict
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 import uvicorn
@@ -20,149 +23,69 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 WEBAPP_URL = "https://xo-arena-qoyp.onrender.com"
 
-
 if not TOKEN:
-    raise RuntimeError(
-        "BOT_TOKEN не найден! "
-        "Добавь BOT_TOKEN в Environment Variables Render."
-    )
+    raise RuntimeError("BOT_TOKEN не найден в Render Environment Variables")
 
 
 # =========================================================
-# TELEGRAM BOT
+# TELEGRAM
 # =========================================================
 
 bot = Bot(TOKEN)
-
 dp = Dispatcher()
 
 
 # =========================================================
-# /START
+# GAME ROOMS
 # =========================================================
 
-@dp.message(CommandStart())
-async def start(message: Message):
-
-    builder = InlineKeyboardBuilder()
-
-    builder.button(
-        text="🎮 ОТКРЫТЬ XO ARENA",
-        web_app=WebAppInfo(
-            url=WEBAPP_URL
-        )
-    )
-
-    await message.answer(
-        "🔥 <b>XO ARENA</b>\n\n"
-
-        "Добро пожаловать в арену! ⚡\n\n"
-
-        "🎮 <b>3×3 поле</b>\n"
-        "❌ X против ⭕ O\n"
-        "🌀 Максимум 3 фигуры\n"
-        "✨ Красивые анимации\n"
-        "🏆 Три в ряд = победа\n\n"
-
-        "Готов к игре? 👇",
-
-        reply_markup=builder.as_markup(),
-
-        parse_mode="HTML"
-    )
+rooms: Dict[str, dict] = {}
 
 
-# =========================================================
-# FASTAPI
-# =========================================================
+def create_room():
+    room_id = secrets.token_urlsafe(5)
 
-app = FastAPI(
-    title="XO Arena"
-)
+    rooms[room_id] = {
+        "board": [""] * 9,
+        "players": {},
+        "turn": "X",
+        "winner": None,
+    }
+
+    return room_id
 
 
-# =========================================================
-# WEBAPP
-# =========================================================
+def check_winner(board):
 
-app.mount(
-    "/",
-    StaticFiles(
-        directory="webapp",
-        html=True
-    ),
-    name="webapp"
-)
+    combinations = [
+        (0, 1, 2),
+        (3, 4, 5),
+        (6, 7, 8),
+        (0, 3, 6),
+        (1, 4, 7),
+        (2, 5, 8),
+        (0, 4, 8),
+        (2, 4, 6),
+    ]
+
+    for a, b, c in combinations:
+
+        if (
+            board[a]
+            and board[a] == board[b]
+            and board[a] == board[c]
+        ):
+            return board[a]
+
+    if all(board):
+        return "DRAW"
+
+    return None
 
 
 # =========================================================
-# TELEGRAM BOT
+# START COMMAND
 # =========================================================
 
-async def run_bot():
-
-    print("🤖 Telegram Bot запускается...")
-
-    await dp.start_polling(bot)
-
-
-# =========================================================
-# WEB SERVER
-# =========================================================
-
-async def run_web():
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            "8000"
-        )
-    )
-
-    config = uvicorn.Config(
-        app,
-
-        host="0.0.0.0",
-
-        port=port,
-
-        log_level="info"
-    )
-
-    server = uvicorn.Server(config)
-
-    print(
-        f"🌐 Web server запущен на порту {port}"
-    )
-
-    await server.serve()
-
-
-# =========================================================
-# MAIN
-# =========================================================
-
-async def main():
-
-    print("")
-    print("================================")
-    print("       🎮 XO ARENA")
-    print("================================")
-    print("🤖 Telegram Bot")
-    print("🌐 Mini App")
-    print("🚀 Сервер запускается...")
-    print("")
-
-    await asyncio.gather(
-        run_bot(),
-        run_web()
-    )
-
-
-# =========================================================
-# START
-# =========================================================
-
-if __name__ == "__main__":
-
-    asyncio.run(main())
+@dp.message(CommandSt
+```
