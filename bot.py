@@ -23,51 +23,66 @@ TOKEN = os.getenv("BOT_TOKEN")
 WEBAPP_URL = "https://xo-arena-qoyp.onrender.com"
 
 if not TOKEN:
-    raise RuntimeError("BOT_TOKEN не найден в Render Environment Variables")
+    raise RuntimeError("BOT_TOKEN не найден")
 
-
-# =========================================================
-# TELEGRAM
-# =========================================================
 
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
+app = FastAPI(title="XO Arena")
+
 
 # =========================================================
-# GAME ROOMS
+# ROOMS
 # =========================================================
 
 rooms: Dict[str, dict] = {}
 
+matchmaking = []
+
+
+# =========================================================
+# CREATE ROOM
+# =========================================================
 
 def create_room():
-    room_id = secrets.token_urlsafe(5)
+
+    room_id = secrets.token_urlsafe(5).upper()
 
     rooms[room_id] = {
         "board": [""] * 9,
         "players": {},
+        "positions": {
+            "X": [],
+            "O": []
+        },
         "turn": "X",
-        "winner": None,
+        "winner": None
     }
 
     return room_id
 
 
+# =========================================================
+# WINNER
+# =========================================================
+
 def check_winner(board):
 
-    combinations = [
+    lines = [
         (0, 1, 2),
         (3, 4, 5),
         (6, 7, 8),
+
         (0, 3, 6),
         (1, 4, 7),
         (2, 5, 8),
+
         (0, 4, 8),
-        (2, 4, 6),
+        (2, 4, 6)
     ]
 
-    for a, b, c in combinations:
+    for a, b, c in lines:
 
         if (
             board[a]
@@ -76,45 +91,127 @@ def check_winner(board):
         ):
             return board[a]
 
-    if all(board):
-        return "DRAW"
-
     return None
 
 
 # =========================================================
-# START COMMAND
+# SEND ROOM STATE
+# =========================================================
+
+async def send_state(room):
+
+    players_count = len(room["players"])
+
+    data = {
+        "type": "state",
+        "board": room["board"],
+        "turn": room["turn"],
+        "winner": room["winner"],
+        "players": players_count
+    }
+
+    disconnected = []
+
+    for symbol, ws in room["players"].items():
+
+        try:
+            await ws.send_json(data)
+
+        except Exception:
+            disconnected.append(symbol)
+
+    for symbol in disconnected:
+        room["players"].pop(symbol, None)
+
+
+# =========================================================
+# START
 # =========================================================
 
 @dp.message(CommandStart())
 async def start(message: Message):
 
+    args = message.text.split(maxsplit=1)
+
+    room_id = None
+
+    if len(args) > 1:
+
+        value = args[1]
+
+        if value.startswith("game_"):
+            room_id = value[5:]
+
+
     builder = InlineKeyboardBuilder()
 
+    if room_id and room_id in rooms:
+
+        url = (
+            f"{WEBAPP_URL}"
+            f"?room={room_id}"
+        )
+
+        text = "🎮 ВОЙТИ В ИГРУ"
+
+    else:
+
+        url = WEBAPP_URL
+
+        text = "🎮 ОТКРЫТЬ XO ARENA"
+
+
     builder.button(
-        text="🎮 ОТКРЫТЬ XO ARENA",
+        text=text,
         web_app=WebAppInfo(
-            url=WEBAPP_URL
+            url=url
         )
     )
 
+
     await message.answer(
+
         "🔥 <b>XO ARENA</b>\n\n"
+
         "🎮 Онлайн крестики-нолики\n"
         "👥 Играй с другом\n"
-        "⚡ Ходы в реальном времени\n"
+        "⚡ Быстрый поиск соперника\n"
         "🌀 Максимум 3 фигуры\n\n"
-        "Готов к игре? 👇",
+
+        "Выбери игру 👇",
+
         reply_markup=builder.as_markup(),
+
         parse_mode="HTML"
     )
 
 
 # =========================================================
-# FASTAPI
+# CONFIG API
 # =========================================================
 
-app = FastAPI(title="XO Arena")
+@app.get("/config")
+async def config():
+
+    me = await bot.get_me()
+
+    return {
+        "username": me.username
+    }
+
+
+# =========================================================
+# CREATE ROOM API
+# =========================================================
+
+@app.get("/create-room")
+async def create_room_api():
+
+    room_id = create_room()
+
+    return {
+        "room": room_id
+    }
 
 
 # =========================================================
@@ -129,73 +226,82 @@ async def websocket_endpoint(
 
     await websocket.accept()
 
+
     # -----------------------------------------------------
-    # ROOM
+    # CREATE ROOM
     # -----------------------------------------------------
 
     if room_id not in rooms:
+        create_room()
+
+        # create_room создал другой ID,
+        # поэтому создаём конкретно нужную комнату
+
         rooms[room_id] = {
             "board": [""] * 9,
             "players": {},
+            "positions": {
+                "X": [],
+                "O": []
+            },
             "turn": "X",
-            "winner": None,
+            "winner": None
         }
+
 
     room = rooms[room_id]
 
+
     # -----------------------------------------------------
-    # PLAYER
+    # FIND PLAYER
     # -----------------------------------------------------
 
     if "X" not in room["players"]:
+
         player = "X"
 
     elif "O" not in room["players"]:
+
         player = "O"
 
     else:
+
         await websocket.send_json({
             "type": "error",
-            "message": "Комната уже заполнена"
+            "message": "Комната заполнена"
         })
 
         await websocket.close()
 
         return
 
+
     room["players"][player] = websocket
 
+
     # -----------------------------------------------------
-    # SEND PLAYER INFO
+    # CONNECTED
     # -----------------------------------------------------
 
     await websocket.send_json({
+
         "type": "connected",
+
         "player": player,
+
         "board": room["board"],
+
         "turn": room["turn"],
+
         "winner": room["winner"],
+
         "players": len(room["players"])
+
     })
 
-    # -----------------------------------------------------
-    # BROADCAST
-    # -----------------------------------------------------
 
-    async def broadcast(data):
+    await send_state(room)
 
-        disconnected = []
-
-        for symbol, ws in room["players"].items():
-
-            try:
-                await ws.send_json(data)
-
-            except Exception:
-                disconnected.append(symbol)
-
-        for symbol in disconnected:
-            room["players"].pop(symbol, None)
 
     # -----------------------------------------------------
     # GAME LOOP
@@ -209,86 +315,105 @@ async def websocket_endpoint(
 
             action = data.get("action")
 
-            # =============================================
+
+            # =================================================
             # MOVE
-            # =============================================
+            # =================================================
 
             if action == "move":
 
                 index = data.get("index")
 
-                # Проверка номера клетки
+
                 if not isinstance(index, int):
                     continue
+
 
                 if index < 0 or index > 8:
                     continue
 
-                # Не ходить после победы
+
                 if room["winner"]:
                     continue
 
-                # Ход только своего игрока
+
                 if room["turn"] != player:
                     continue
 
-                # Клетка занята
+
                 if room["board"][index]:
                     continue
 
-                # Ставим символ
+
+                # ------------------------------------------------
+                # PLACE SYMBOL
+                # ------------------------------------------------
+
                 room["board"][index] = player
 
-                # Проверяем победу
+                room["positions"][player].append(index)
+
+
+                # ------------------------------------------------
+                # MAX 3 FIGURES
+                # ------------------------------------------------
+
+                if len(room["positions"][player]) > 3:
+
+                    oldest = room["positions"][player].pop(0)
+
+                    # Не удаляем новую фигуру,
+                    # если каким-то образом индекс совпал
+
+                    if oldest != index:
+                        room["board"][oldest] = ""
+
+
+                # ------------------------------------------------
+                # CHECK WIN
+                # ------------------------------------------------
+
                 winner = check_winner(
                     room["board"]
                 )
 
                 room["winner"] = winner
 
-                # Передаём всем
-                await broadcast({
-                    "type": "state",
-                    "board": room["board"],
-                    "turn": (
-                        None
-                        if winner
-                        else (
-                            "O"
-                            if player == "X"
-                            else "X"
-                        )
-                    ),
-                    "winner": winner,
-                    "players": len(room["players"])
-                })
 
-                # Меняем ход
+                # ------------------------------------------------
+                # NEXT TURN
+                # ------------------------------------------------
+
                 if not winner:
 
-                    room["turn"] = (
-                        "O"
-                        if player == "X"
-                        else "X"
-                    )
+                    if player == "X":
+                        room["turn"] = "O"
+                    else:
+                        room["turn"] = "X"
 
-            # =============================================
+
+                await send_state(room)
+
+
+            # =================================================
             # RESET
-            # =============================================
+            # =================================================
 
             elif action == "reset":
 
                 room["board"] = [""] * 9
+
+                room["positions"] = {
+                    "X": [],
+                    "O": []
+                }
+
                 room["turn"] = "X"
+
                 room["winner"] = None
 
-                await broadcast({
-                    "type": "state",
-                    "board": room["board"],
-                    "turn": "X",
-                    "winner": None,
-                    "players": len(room["players"])
-                })
+                await send_state(room)
+
 
     except WebSocketDisconnect:
 
@@ -299,7 +424,7 @@ async def websocket_endpoint(
 
 
 # =========================================================
-# WEB APP
+# STATIC WEBAPP
 # =========================================================
 
 app.mount(
