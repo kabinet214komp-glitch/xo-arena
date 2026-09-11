@@ -1,0 +1,623 @@
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    --bg: #080b16;
+    --card: #111627;
+    --cell: #151b30;
+    --cell-hover: #1c2440;
+
+    --blue: #6c63ff;
+    --cyan: #35d6ff;
+
+    --x: #ff4d7d;
+    --o: #45d8ff;
+
+    --text: #ffffff;
+    --muted: #858ba3;
+}
+
+body {
+    margin: 0;
+
+    min-height: 100vh;
+
+    background:
+        radial-gradient(
+            circle at 20% 10%,
+            rgba(108, 99, 255, 0.18),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 80% 80%,
+            rgba(53, 214, 255, 0.12),
+            transparent 35%
+        ),
+        var(--bg);
+
+    color: var(--text);
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        sans-serif;
+}
+
+button {
+    font-family: inherit;
+}
+
+.app {
+    width: min(94vw, 430px);
+
+    margin: 0 auto;
+
+    padding:
+        max(22px, env(safe-area-inset-top))
+        16px
+        30px;
+}
+
+
+/* HEADER */
+
+.header {
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    margin-bottom: 24px;
+}
+
+.logo {
+    width: 58px;
+    height: 58px;
+
+    border-radius: 18px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 1px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6c63ff,
+            #35d6ff
+        );
+
+    box-shadow:
+        0 10px 35px rgba(108, 99, 255, .35);
+}
+
+.logo-x {
+    color: white;
+
+    font-size: 24px;
+
+    font-weight: 900;
+}
+
+.logo-o {
+    color: #0a1020;
+
+    font-size: 24px;
+
+    font-weight: 900;
+}
+
+.header h1 {
+    margin: 0;
+
+    font-size: 24px;
+
+    letter-spacing: 2px;
+}
+
+.header p {
+    margin: 2px 0 0;
+
+    color: var(--muted);
+
+    font-size: 13px;
+}
+
+
+/* PLAYER */
+
+.player-card {
+    display: flex;
+
+    align-items: center;
+
+    padding: 14px;
+
+    background: rgba(17, 22, 39, .8);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+
+    border-radius: 20px;
+
+    backdrop-filter: blur(15px);
+}
+
+.avatar {
+    width: 46px;
+    height: 46px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6c63ff,
+            #35d6ff
+        );
+
+    font-size: 19px;
+
+    font-weight: 800;
+}
+
+.player-info {
+    display: flex;
+
+    flex-direction: column;
+
+    margin-left: 12px;
+
+    gap: 4px;
+}
+
+.player-name {
+    font-weight: 700;
+}
+
+.player-role {
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+.score {
+    margin-left: auto;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 18px;
+}
+
+
+/* STATUS */
+
+.status {
+    text-align: center;
+
+    margin: 25px 0 15px;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    color: #dce3ff;
+}
+
+
+/* BOARD */
+
+.board {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 10px;
+
+    padding: 10px;
+
+    border-radius: 28px;
+
+    background:
+        rgba(255,255,255,.025);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+
+    box-shadow:
+        0 25px 60px
+        rgba(0,0,0,.35);
+}
+
+.cell {
+    aspect-ratio: 1;
+
+    border: none;
+
+    border-radius: 19px;
+
+    background: var(--cell);
+
+    color: white;
+
+    cursor: pointer;
+
+    position: relative;
+
+    transition:
+        transform .15s ease,
+        background .2s ease,
+        box-shadow .2s ease;
+}
+
+.cell:active {
+    transform: scale(.92);
+}
+
+.cell:not(:disabled):hover {
+    background: var(--cell-hover);
+}
+
+
+/* X */
+
+.cell.x::before,
+.cell.x::after {
+    content: "";
+
+    position: absolute;
+
+    width: 56%;
+
+    height: 8px;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #ff3971,
+            #ff7ca5
+        );
+
+    left: 22%;
+    top: calc(50% - 4px);
+
+    box-shadow:
+        0 0 18px
+        rgba(255, 61, 120, .45);
+}
+
+.cell.x::before {
+    transform: rotate(45deg);
+
+    animation: drawX .25s ease;
+}
+
+.cell.x::after {
+    transform: rotate(-45deg);
+
+    animation: drawX .25s ease;
+}
+
+
+/* O */
+
+.cell.o::before {
+    content: "";
+
+    position: absolute;
+
+    width: 46%;
+    height: 46%;
+
+    left: 27%;
+    top: 27%;
+
+    border:
+        8px solid
+        var(--o);
+
+    border-radius: 50%;
+
+    box-shadow:
+        0 0 18px
+        rgba(69,216,255,.45);
+
+    animation:
+        appearO .25s ease;
+}
+
+
+/* ANIMATIONS */
+
+@keyframes drawX {
+    from {
+        transform:
+            rotate(45deg)
+            scaleX(0);
+        opacity: 0;
+    }
+
+    to {
+        transform:
+            rotate(45deg)
+            scaleX(1);
+        opacity: 1;
+    }
+}
+
+@keyframes appearO {
+    from {
+        transform: scale(.3);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.cell.removing {
+    animation:
+        disappear .35s ease forwards;
+}
+
+@keyframes disappear {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: .7;
+    }
+
+    100% {
+        transform: scale(.1);
+        opacity: 0;
+    }
+}
+
+.cell.winner {
+    animation:
+        winnerPulse .7s infinite alternate;
+}
+
+@keyframes winnerPulse {
+    from {
+        box-shadow:
+            0 0 0 rgba(108,99,255,0);
+    }
+
+    to {
+        box-shadow:
+            0 0 30px
+            rgba(108,99,255,.8);
+    }
+}
+
+
+/* PIECES INFO */
+
+.pieces-info {
+    display: flex;
+
+    justify-content: space-between;
+
+    margin-top: 15px;
+
+    padding: 0 5px;
+
+    color: var(--muted);
+
+    font-size: 13px;
+}
+
+.pieces-info > div {
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+}
+
+.x-dot {
+    background: var(--x);
+
+    box-shadow:
+        0 0 10px var(--x);
+}
+
+
+/* RESTART */
+
+.restart {
+    width: 100%;
+
+    margin-top: 20px;
+
+    padding: 16px;
+
+    border: none;
+
+    border-radius: 17px;
+
+    color: white;
+
+    font-weight: 800;
+
+    font-size: 15px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6c63ff,
+            #35bfff
+        );
+
+    box-shadow:
+        0 12px 30px
+        rgba(108,99,255,.25);
+
+    cursor: pointer;
+
+    transition:
+        transform .15s ease;
+}
+
+.restart:active {
+    transform: scale(.97);
+}
+
+
+/* WIN SCREEN */
+
+.overlay {
+    position: fixed;
+
+    inset: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background:
+        rgba(3,5,12,.75);
+
+    backdrop-filter: blur(12px);
+
+    z-index: 100;
+}
+
+.hidden {
+    display: none;
+}
+
+.win-card {
+    width: min(90vw, 350px);
+
+    padding: 35px 25px;
+
+    text-align: center;
+
+    border-radius: 30px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #171d35,
+            #0d1222
+        );
+
+    border:
+        1px solid
+        rgba(255,255,255,.1);
+
+    box-shadow:
+        0 30px 80px
+        rgba(0,0,0,.6);
+
+    animation:
+        winAppear .45s ease;
+}
+
+@keyframes winAppear {
+    from {
+        transform:
+            scale(.7)
+            translateY(30px);
+
+        opacity: 0;
+    }
+
+    to {
+        transform:
+            scale(1)
+            translateY(0);
+
+        opacity: 1;
+    }
+}
+
+.trophy {
+    font-size: 70px;
+
+    animation:
+        trophy .8s ease infinite alternate;
+}
+
+@keyframes trophy {
+    from {
+        transform: rotate(-8deg) scale(1);
+    }
+
+    to {
+        transform: rotate(8deg) scale(1.08);
+    }
+}
+
+.win-card h2 {
+    margin: 15px 0 5px;
+
+    font-size: 28px;
+}
+
+.win-card p {
+    color: var(--muted);
+}
+
+#playAgain {
+    width: 100%;
+
+    padding: 15px;
+
+    border: none;
+
+    border-radius: 15px;
+
+    color: white;
+
+    font-weight: 800;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6c63ff,
+            #35d6ff
+        );
+
+    margin-top: 15px;
+}
