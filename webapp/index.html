@@ -1,91 +1,217 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        content="width=device-width,
+        initial-scale=1.0,
+        maximum-scale=1.0,
+        user-scalable=no"
     >
 
     <title>XO Arena</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 </head>
+
 
 <body>
 
-    <div class="background"></div>
+<div class="background"></div>
 
-    <main class="app">
 
-        <header class="header">
+<main class="app">
 
-            <div class="logo">
-                <span>XO</span>
-                <strong>ARENA</strong>
+
+    <header class="header">
+
+        <div class="logo">
+
+            <span>XO</span>
+
+            <strong>ARENA</strong>
+
+        </div>
+
+
+        <div
+            id="connection"
+            class="connection"
+        >
+            🔴 Offline
+        </div>
+
+    </header>
+
+
+    <!-- MENU -->
+
+    <section
+        id="menu"
+        class="menu"
+    >
+
+        <div class="hero">
+
+            <div class="hero-icon">
+                ⚔️
             </div>
 
-            <div id="connection" class="connection">
-                🟡 Подключение...
+            <h1>
+                XO ARENA
+            </h1>
+
+            <p>
+                Онлайн-арена крестиков-ноликов
+            </p>
+
+        </div>
+
+
+        <button
+            id="friendButton"
+            class="main-button purple"
+        >
+            👥 ИГРАТЬ С ДРУГОМ
+        </button>
+
+
+        <button
+            id="randomButton"
+            class="main-button cyan"
+        >
+            ⚡ БЫСТРЫЙ ПОИСК
+        </button>
+
+
+        <div
+            id="search"
+            class="search hidden"
+        >
+
+            <div class="loader">
+                ⚡
             </div>
 
-        </header>
+            <h2>
+                Ищем соперника...
+            </h2>
 
-
-        <section class="online-panel">
-
-            <div class="mode">
-                👥 ONLINE
-            </div>
-
-            <div id="roomText" class="room">
-                Создание комнаты...
-            </div>
-
-            <div id="playerText" class="player">
-                Подключение...
-            </div>
-
-        </section>
-
-
-        <section class="game">
-
-            <div id="status" class="status">
-                Подключение...
-            </div>
-
-            <div id="board" class="board">
-
-                <button class="cell" data-index="0"></button>
-                <button class="cell" data-index="1"></button>
-                <button class="cell" data-index="2"></button>
-
-                <button class="cell" data-index="3"></button>
-                <button class="cell" data-index="4"></button>
-                <button class="cell" data-index="5"></button>
-
-                <button class="cell" data-index="6"></button>
-                <button class="cell" data-index="7"></button>
-                <button class="cell" data-index="8"></button>
-
-            </div>
-
+            <p>
+                Подожди немного
+            </p>
 
             <button
-                id="newGame"
-                class="new-game"
+                id="cancelSearch"
+                class="cancel"
             >
-                🔄 НОВАЯ ИГРА
+                Отмена
             </button>
 
-        </section>
+        </div>
+
+    </section>
 
 
-        <section
+    <!-- ROOM -->
+
+    <section
+        id="roomPanel"
+        class="room-panel hidden"
+    >
+
+        <div class="online">
+            👥 ONLINE
+        </div>
+
+
+        <div
+            id="roomText"
+            class="room"
+        >
+            Комната
+        </div>
+
+
+        <div
+            id="playerText"
+            class="player"
+        >
+            Подключение...
+        </div>
+
+
+        <button
+            id="inviteButton"
+            class="invite"
+        >
+            📤 ПРИГЛАСИТЬ ДРУГА
+        </button>
+
+
+        <div
+            id="waiting"
+            class="waiting"
+        >
+            ⏳ Ожидаем соперника...
+        </div>
+
+
+        <div
+            id="status"
+            class="status"
+        >
+            Подключение...
+        </div>
+
+
+        <div
+            id="board"
+            class="board"
+        >
+
+            <button class="cell" data-index="0"></button>
+            <button class="cell" data-index="1"></button>
+            <button class="cell" data-index="2"></button>
+
+            <button class="cell" data-index="3"></button>
+            <button class="cell" data-index="4"></button>
+            <button class="cell" data-index="5"></button>
+
+            <button class="cell" data-index="6"></button>
+            <button class="cell" data-index="7"></button>
+            <button class="cell" data-index="8"></button>
+
+        </div>
+
+
+        <button
+            id="newGame"
+            class="new-game"
+        >
+            🔄 НОВАЯ ИГРА
+        </button>
+
+
+        <button
+            id="backButton"
+            class="back"
+        >
+            ← В меню
+        </button>
+
+
+        <div
             id="result"
             class="result hidden"
         >
@@ -98,25 +224,34 @@
                 Победа!
             </div>
 
-        </section>
+        </div>
 
 
-        <footer>
-
-            <div>
-                ❌ <span id="xPlayers">0</span>
-            </div>
-
-            <div>
-                ⭕ <span id="oPlayers">0</span>
-            </div>
-
-        </footer>
-
-    </main>
+    </section>
 
 
-    <script src="app.js"></script>
+    <footer>
+
+        <span>
+            ❌
+        </span>
+
+        <span>
+            🌀 3 FIGURES
+        </span>
+
+        <span>
+            ⭕
+        </span>
+
+    </footer>
+
+
+</main>
+
+
+<script src="app.js"></script>
 
 </body>
+
 </html>
