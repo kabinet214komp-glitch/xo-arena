@@ -1,96 +1,79 @@
 const tg = window.Telegram?.WebApp;
 
 if (tg) {
+
     tg.ready();
+
     tg.expand();
 }
 
 
-// =====================================================
+// ======================================================
 // ELEMENTS
-// =====================================================
+// ======================================================
 
-const cells = document.querySelectorAll(".cell");
+const menu =
+    document.getElementById("menu");
 
-const status = document.getElementById("status");
+const roomPanel =
+    document.getElementById("roomPanel");
+
+const friendButton =
+    document.getElementById("friendButton");
+
+const randomButton =
+    document.getElementById("randomButton");
+
+const search =
+    document.getElementById("search");
+
+const cancelSearch =
+    document.getElementById("cancelSearch");
+
+const inviteButton =
+    document.getElementById("inviteButton");
 
 const connection =
     document.getElementById("connection");
 
-const playerText =
-    document.getElementById("playerText");
-
 const roomText =
     document.getElementById("roomText");
 
-const result =
-    document.getElementById("result");
+const playerText =
+    document.getElementById("playerText");
 
-const resultText =
-    document.getElementById("resultText");
+const waiting =
+    document.getElementById("waiting");
 
-const resultIcon =
-    document.getElementById("resultIcon");
+const status =
+    document.getElementById("status");
 
 const newGame =
     document.getElementById("newGame");
 
-const xPlayers =
-    document.getElementById("xPlayers");
+const backButton =
+    document.getElementById("backButton");
 
-const oPlayers =
-    document.getElementById("oPlayers");
+const result =
+    document.getElementById("result");
 
+const resultIcon =
+    document.getElementById("resultIcon");
 
-// =====================================================
-// ROOM
-// =====================================================
+const resultText =
+    document.getElementById("resultText");
 
-// Пока используем room из URL:
-//
-// https://site.com/?room=ABC123
-//
-// Если комнаты нет — создаём её.
-
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
-
-let roomId =
-    params.get("room");
+const cells =
+    document.querySelectorAll(".cell");
 
 
-// Создаём комнату, если её нет
-
-if (!roomId) {
-
-    roomId =
-        Math.random()
-            .toString(36)
-            .substring(2, 8)
-            .toUpperCase();
-
-    const newUrl =
-        `${window.location.origin}/?room=${roomId}`;
-
-    window.history.replaceState(
-        {},
-        "",
-        newUrl
-    );
-}
-
-
-roomText.textContent =
-    `Комната: #${roomId}`;
-
-
-// =====================================================
+// ======================================================
 // STATE
-// =====================================================
+// ======================================================
 
 let socket = null;
+
+let roomId = null;
 
 let myPlayer = null;
 
@@ -100,41 +83,89 @@ let currentTurn = null;
 
 let winner = null;
 
+let botUsername = null;
 
-// =====================================================
-// WEBSOCKET URL
-// =====================================================
+let searching = false;
 
-function getWebSocketURL() {
+
+// ======================================================
+// TELEGRAM BOT USERNAME
+// ======================================================
+
+async function loadConfig() {
+
+    try {
+
+        const response =
+            await fetch("/config");
+
+        const data =
+            await response.json();
+
+        botUsername =
+            data.username;
+
+    } catch (error) {
+
+        console.error(
+            "Config error:",
+            error
+        );
+    }
+}
+
+
+// ======================================================
+// URL ROOM
+// ======================================================
+
+function getRoomFromURL() {
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    return params.get("room");
+}
+
+
+// ======================================================
+// CONNECT
+// ======================================================
+
+function connect(room) {
+
+    roomId = room;
+
+    menu.classList.add("hidden");
+
+    roomPanel.classList.remove("hidden");
+
+    roomText.textContent =
+        `Комната: #${roomId}`;
+
 
     const protocol =
         window.location.protocol === "https:"
             ? "wss:"
             : "ws:";
 
-    return (
+
+    const url =
         protocol +
         "//" +
         window.location.host +
         "/ws/" +
-        roomId
-    );
-}
+        roomId;
 
-
-// =====================================================
-// CONNECT
-// =====================================================
-
-function connect() {
 
     connection.textContent =
         "🟡 Подключение...";
 
+
     socket =
-        new WebSocket(
-            getWebSocketURL()
-        );
+        new WebSocket(url);
 
 
     socket.onopen = () => {
@@ -147,45 +178,42 @@ function connect() {
     };
 
 
-    socket.onclose = () => {
+    socket.onmessage = event => {
 
-        connection.textContent =
-            "🔴 Отключено";
+        const data =
+            JSON.parse(
+                event.data
+            );
 
-        connection.style.color =
-            "#ff5555";
-
-        status.textContent =
-            "Соединение потеряно";
+        handleMessage(data);
     };
 
 
-    socket.onerror = () => {
+    socket.onerror = error => {
+
+        console.error(
+            "WebSocket error:",
+            error
+        );
 
         connection.textContent =
             "🔴 Ошибка";
     };
 
 
-    socket.onmessage = event => {
+    socket.onclose = () => {
 
-        const data =
-            JSON.parse(event.data);
-
-        handleMessage(data);
+        connection.textContent =
+            "🔴 Соединение потеряно";
     };
 }
 
 
-// =====================================================
-// SERVER MESSAGE
-// =====================================================
+// ======================================================
+// MESSAGE
+// ======================================================
 
 function handleMessage(data) {
-
-    // -----------------------------------------------
-    // CONNECTED
-    // -----------------------------------------------
 
     if (data.type === "connected") {
 
@@ -201,14 +229,11 @@ function handleMessage(data) {
         winner =
             data.winner;
 
+        updatePlayer();
+
         updatePlayers(
             data.players
         );
-
-        playerText.textContent =
-            myPlayer === "X"
-                ? "❌ Ты играешь за X"
-                : "⭕ Ты играешь за O";
 
         render();
 
@@ -217,10 +242,6 @@ function handleMessage(data) {
         return;
     }
 
-
-    // -----------------------------------------------
-    // STATE
-    // -----------------------------------------------
 
     if (data.type === "state") {
 
@@ -241,57 +262,81 @@ function handleMessage(data) {
 
         updateStatus();
 
+
+        if (data.players >= 2) {
+
+            waiting.classList.add(
+                "hidden"
+            );
+
+        } else {
+
+            waiting.classList.remove(
+                "hidden"
+            );
+        }
+
+
         if (winner) {
 
-            showResult(
-                winner
-            );
+            showResult(winner);
         }
 
         return;
     }
 
 
-    // -----------------------------------------------
-    // ERROR
-    // -----------------------------------------------
-
     if (data.type === "error") {
 
         status.textContent =
             data.message;
-
     }
-
 }
 
 
-// =====================================================
+// ======================================================
+// PLAYER
+// ======================================================
+
+function updatePlayer() {
+
+    if (myPlayer === "X") {
+
+        playerText.textContent =
+            "❌ Ты играешь за X";
+
+    } else {
+
+        playerText.textContent =
+            "⭕ Ты играешь за O";
+    }
+}
+
+
+// ======================================================
 // PLAYERS
-// =====================================================
+// ======================================================
 
 function updatePlayers(count) {
 
-    count =
-        Number(count || 0);
-
-    if (count >= 1) {
-        xPlayers.textContent = "1";
-    } else {
-        xPlayers.textContent = "0";
-    }
-
     if (count >= 2) {
-        oPlayers.textContent = "1";
+
+        waiting.classList.add(
+            "hidden"
+        );
+
     } else {
-        oPlayers.textContent = "0";
+
+        waiting.classList.remove(
+            "hidden"
+        );
     }
 }
 
 
-// =====================================================
+// ======================================================
 // BOARD
-// =====================================================
+// ======================================================
 
 function render() {
 
@@ -309,6 +354,7 @@ function render() {
                 "o"
             );
 
+
             if (value === "X") {
 
                 cell.classList.add(
@@ -316,12 +362,14 @@ function render() {
                 );
             }
 
+
             if (value === "O") {
 
                 cell.classList.add(
                     "o"
                 );
             }
+
 
             cell.disabled =
                 Boolean(
@@ -332,13 +380,22 @@ function render() {
 }
 
 
-// =====================================================
+// ======================================================
 // STATUS
-// =====================================================
+// ======================================================
 
 function updateStatus() {
 
     if (winner) {
+        return;
+    }
+
+
+    if (!currentTurn) {
+
+        status.textContent =
+            "⏳ Ожидаем игрока...";
+
         return;
     }
 
@@ -362,9 +419,9 @@ function updateStatus() {
 }
 
 
-// =====================================================
+// ======================================================
 // MOVE
-// =====================================================
+// ======================================================
 
 cells.forEach(
     cell => {
@@ -377,6 +434,7 @@ cells.forEach(
                     return;
                 }
 
+
                 if (
                     socket.readyState !==
                     WebSocket.OPEN
@@ -384,9 +442,11 @@ cells.forEach(
                     return;
                 }
 
+
                 if (winner) {
                     return;
                 }
+
 
                 if (
                     currentTurn !==
@@ -395,21 +455,25 @@ cells.forEach(
                     return;
                 }
 
+
                 const index =
                     Number(
                         cell.dataset.index
                     );
 
-                if (
-                    board[index]
-                ) {
+
+                if (board[index]) {
                     return;
                 }
 
+
                 socket.send(
                     JSON.stringify({
+
                         action: "move",
+
                         index: index
+
                     })
                 );
             }
@@ -418,57 +482,209 @@ cells.forEach(
 );
 
 
-// =====================================================
-// RESULT
-// =====================================================
+// ======================================================
+// CREATE ROOM
+// ======================================================
 
-function showResult(winnerValue) {
+async function createRoom() {
 
-    result.classList.remove(
-        "hidden"
-    );
+    try {
 
+        const response =
+            await fetch(
+                "/create-room"
+            );
 
-    if (
-        winnerValue ===
-        "DRAW"
-    ) {
+        const data =
+            await response.json();
 
-        resultIcon.textContent =
-            "🤝";
+        return data.room;
 
-        resultText.textContent =
-            "Ничья!";
+    } catch (error) {
 
-        return;
-    }
+        console.error(error);
 
-
-    if (
-        winnerValue ===
-        myPlayer
-    ) {
-
-        resultIcon.textContent =
-            "🏆";
-
-        resultText.textContent =
-            "ПОБЕДА! 🔥";
-
-    } else {
-
-        resultIcon.textContent =
-            "😢";
-
-        resultText.textContent =
-            "Ты проиграл";
+        return null;
     }
 }
 
 
-// =====================================================
+// ======================================================
+// PLAY WITH FRIEND
+// ======================================================
+
+friendButton.addEventListener(
+    "click",
+    async () => {
+
+        friendButton.disabled =
+            true;
+
+        const room =
+            await createRoom();
+
+        friendButton.disabled =
+            false;
+
+
+        if (!room) {
+
+            alert(
+                "Не удалось создать комнату"
+            );
+
+            return;
+        }
+
+
+        connect(room);
+    }
+);
+
+
+// ======================================================
+// INVITE FRIEND
+// ======================================================
+
+inviteButton.addEventListener(
+    "click",
+    async () => {
+
+        if (!botUsername) {
+
+            await loadConfig();
+        }
+
+
+        if (!botUsername) {
+
+            alert(
+                "Не удалось получить Telegram username бота"
+            );
+
+            return;
+        }
+
+
+        const invite =
+            `https://t.me/${botUsername}?start=game_${roomId}`;
+
+
+        const text =
+            "🎮 Заходи в XO Arena! " +
+            "Сыграем онлайн 👇";
+
+
+        const shareUrl =
+            "https://t.me/share/url" +
+            "?url=" +
+            encodeURIComponent(invite) +
+            "&text=" +
+            encodeURIComponent(text);
+
+
+        if (tg?.openTelegramLink) {
+
+            tg.openTelegramLink(
+                shareUrl
+            );
+
+        } else {
+
+            window.open(
+                shareUrl,
+                "_blank"
+            );
+        }
+    }
+);
+
+
+// ======================================================
+// RANDOM MATCHMAKING
+// ======================================================
+
+randomButton.addEventListener(
+    "click",
+    async () => {
+
+        if (searching) {
+            return;
+        }
+
+
+        searching = true;
+
+
+        menu.classList.add(
+            "hidden"
+        );
+
+        search.classList.remove(
+            "hidden"
+        );
+
+
+        const room =
+            await createRoom();
+
+
+        if (!room) {
+
+            searching = false;
+
+            search.classList.add(
+                "hidden"
+            );
+
+            menu.classList.remove(
+                "hidden"
+            );
+
+            return;
+        }
+
+
+        // Для первой версии
+        // используем комнату ожидания.
+
+        // Чтобы два игрока автоматически
+        // нашли друг друга, создаём
+        // одинаковый matchmaking room.
+
+        const matchRoom =
+            "MATCHMAKING";
+
+
+        connect(matchRoom);
+    }
+);
+
+
+// ======================================================
+// CANCEL SEARCH
+// ======================================================
+
+cancelSearch.addEventListener(
+    "click",
+    () => {
+
+        searching = false;
+
+        search.classList.add(
+            "hidden"
+        );
+
+        menu.classList.remove(
+            "hidden"
+        );
+    }
+);
+
+
+// ======================================================
 // NEW GAME
-// =====================================================
+// ======================================================
 
 newGame.addEventListener(
     "click",
@@ -478,6 +694,7 @@ newGame.addEventListener(
             return;
         }
 
+
         if (
             socket.readyState !==
             WebSocket.OPEN
@@ -485,11 +702,13 @@ newGame.addEventListener(
             return;
         }
 
+
         socket.send(
             JSON.stringify({
                 action: "reset"
             })
         );
+
 
         result.classList.add(
             "hidden"
@@ -498,8 +717,62 @@ newGame.addEventListener(
 );
 
 
-// =====================================================
-// START
-// =====================================================
+// ======================================================
+// BACK
+// ======================================================
 
-connect();
+backButton.addEventListener(
+    "click",
+    () => {
+
+        if (socket) {
+
+            socket.close();
+
+            socket = null;
+        }
+
+
+        roomPanel.classList.add(
+            "hidden"
+        );
+
+        menu.classList.remove(
+            "hidden"
+        );
+
+
+        result.classList.add(
+            "hidden"
+        );
+    }
+);
+
+
+// ======================================================
+// START
+// ======================================================
+
+async function start() {
+
+    await loadConfig();
+
+
+    const existingRoom =
+        getRoomFromURL();
+
+
+    if (existingRoom) {
+
+        connect(existingRoom);
+
+    } else {
+
+        menu.classList.remove(
+            "hidden"
+        );
+    }
+}
+
+
+start();
